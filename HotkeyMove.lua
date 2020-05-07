@@ -17,6 +17,7 @@ local direction = 1
 local times = 1
 local hk = {}
 local iter = 0
+local horizontal = true
 
 
 -- if you are extending the script, you can add more hotkeys here
@@ -64,10 +65,18 @@ local function moveStep()
 		obs.obs_sceneitem_get_pos(sceneItem, pos)
 		if (duration - iter * interval > interval) then
 			-- We're not on the last step, so move
-			pos.x = pos.x + increment * direction
+			if horizontal then
+				pos.x = pos.x + increment * direction
+			else
+				pos.y = pos.y + increment * direction
+			end
 		else
 			-- We are on the last step, move to the final location
-			pos.x = reset + distance * direction
+			if horizontal then
+				pos.x = reset + distance * direction
+			else
+				pos.y = reset + distance * direction
+			end
 			obs.script_log(obs.LOG_INFO, string.format("Last step move to: %f", pos.x))
 		end
 		obs.obs_sceneitem_set_pos(sceneItem, pos)
@@ -85,26 +94,39 @@ local function onHotKey(action)
 		return
 	end
 	obs.timer_remove(moveStep)
+	findSceneItem()
 	if debug then obs.script_log(obs.LOG_INFO, string.format("Hotkey : %s", action)) end
 	if action == "ROTATE_cw" then
 		direction = 1
 		iter = 0
 		local pos = obs.vec2()
 		obs.obs_sceneitem_get_pos(sceneItem, pos)
-		reset = pos.x
+		if horizontal then
+			reset = pos.x
+		else
+			reset = pos.y
+		end
 		obs.timer_add(moveStep, interval)
 	elseif action == "ROTATE_ccw" then
 		direction = -1
 		iter = 0
 		local pos = obs.vec2()
 		obs.obs_sceneitem_get_pos(sceneItem, pos)
-		reset = pos.x
+		if horizontal then
+			reset = pos.x
+		else
+			reset = pos.y
+		end
 		obs.timer_add(moveStep, interval)
 	elseif action == "ROTATE_reset" and sceneItem then
 		-- obs.obs_sceneitem_set_rot(sceneItem, reset)
 		local pos = obs.vec2()
 		obs.obs_sceneitem_get_pos(sceneItem, pos)
-		pos.x = reset
+		if horizontal then
+			pos.x = reset
+		else
+			pos.y = reset
+		end
 		obs.obs_sceneitem_set_pos(sceneItem, pos)
 	end
 end
@@ -136,6 +158,7 @@ function script_update(settings)
 	source = obs.obs_data_get_string(settings, "source")
 	distance = obs.obs_data_get_double(settings, "distance")
 	duration = obs.obs_data_get_int(settings, "duration")
+	horizontal = obs.obs_data_get_bool(settings, "horizontal")
 
 	interval = 30.0
 	times = duration / interval
@@ -149,7 +172,11 @@ function script_update(settings)
 	if sceneItem then
 		local pos = obs.vec2()
 		obs.obs_sceneitem_get_pos(sceneItem, pos)
-		reset = pos.x
+		if horizontal then
+			reset = pos.x
+		else
+			reset = pos.y
+		end
 	end
 end
 
@@ -167,6 +194,7 @@ function script_properties()
 	obs.obs_properties_add_text(props, "source", "Object to move", obs.OBS_TEXT_DEFAULT)
 	obs.obs_properties_add_float(props, "distance", "Distance (px)", 0, 3840, 0.05)
 	obs.obs_properties_add_int(props, "duration", "Duration (ms)", 2, 60000, 1)
+	obs.obs_properties_add_bool(props, "horizontal", "Horizontal Move")
 	-- obs.obs_properties_add_float(props, "times", "Times", 1, 2000, 1)
 	-- obs.obs_properties_add_int(props, "reset", "Reset position", 0, 359, 1)
 	obs.obs_properties_add_bool(props, "debug", "Debug")
@@ -180,6 +208,7 @@ function script_defaults(settings)
 	obs.obs_data_set_default_string(settings, "source", "")
 	obs.obs_data_set_default_double(settings, "distance", 2)
 	obs.obs_data_set_default_int(settings, "duration", 5)
+	obs.obs_data_set_default_bool(settings, "horizontal", true)
 	obs.obs_data_set_default_bool(settings, "debug", false)
 end
 
